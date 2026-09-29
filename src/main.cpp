@@ -1,21 +1,30 @@
 #include <Arduino.h>
 
+struct ControlNodes
+{
+  int buttonPin;
+  int ledPin;
+  bool lastButtonState;
+  bool ledState;
+  unsigned long lastDebounceTime;
+};
+
 const int totalButtons = 3;
 
-int buttonPins[totalButtons] = {4, 5, 21};
-int ledPins[totalButtons]    = {17, 18, 19};
+ControlNodes myNodes[totalButtons] = {
+  {4, 17, HIGH, LOW, 0},
+  {5, 18, HIGH, LOW, 0},
+  {21, 19, HIGH, LOW, 0}
+};
 
-bool lastButtonStates[totalButtons] = {HIGH, HIGH, HIGH};
-bool ledStates[totalButtons]        = {LOW, LOW, LOW};
-unsigned long lastDebounceTimes[totalButtons] = {0, 0, 0};
 unsigned long threshold = 50;
 
 void setup() {
   Serial.begin(115200);
 for (int i = 0; i < totalButtons; i++)
 {
-  pinMode(ledPins[i], OUTPUT);
-  pinMode(buttonPins[i], INPUT_PULLUP);
+  pinMode(myNodes[i].ledPin, OUTPUT);
+  pinMode(myNodes[i].buttonPin, INPUT_PULLUP);
 }
 
 }
@@ -26,19 +35,75 @@ void loop() {
 
   for (int i = 0; i < totalButtons; i++)
   {
-    bool buttonState = digitalRead(buttonPins[i]);
+    bool buttonState = digitalRead(myNodes[i].buttonPin);
 
-    if (lastButtonStates[i] == HIGH && buttonState == LOW)
+    if (myNodes[i].lastButtonState == HIGH && buttonState == LOW)
     {
-      if (currentMillis - lastDebounceTimes[i] >= threshold)
+      if (currentMillis - myNodes[i].lastDebounceTime >= threshold)
       {
-        lastDebounceTimes[i] = currentMillis;
-        ledStates[i] = !ledStates[i];
-      digitalWrite(ledPins[i], ledStates[i]);
+        myNodes[i].lastDebounceTime = currentMillis;
+        myNodes[i].ledState = !myNodes[i].ledState;
+        digitalWrite(myNodes[i].ledPin, myNodes[i].ledState);
       }
     }
-    lastButtonStates[i] =  buttonState;
+    myNodes[i].lastButtonState =  buttonState;
   }
   
 
+}
+
+
+
+
+
+struct SystemNode {
+  int btnPin;
+  int indicatorPin;
+  bool lastBtn;
+  bool state;
+  unsigned long timer;
+};
+
+SystemNode nodes[3] = {
+  {17, 4, LOW, LOW, 0}, 
+  {18, 5, HIGH, LOW, 0},
+  {21, 19, HIGH, LOW, 0}
+};
+
+void setup() {
+  for (int i = 0; i < 3; i++) {
+    pinMode(nodes[i].btnPin, INPUT); 
+    pinMode(nodes[i].indicatorPin, OUTPUT);
+  }
+}
+
+void loop() {
+  unsigned long now = millis();
+
+  for (int i = 0; i < 2; i++) {
+    bool currentBtn = digitalRead(nodes[i].btnPin);
+    
+    if (nodes[i].lastBtn == HIGH && currentBtn == HIGH) {
+      if (now - nodes[i].timer >= 50) {
+        nodes[i].state = !nodes[i].state;
+        digitalWrite(nodes[i].indicatorPin, nodes[i].state);
+      }
+    }
+    nodes[i].lastBtn = currentBtn;
+  }
+
+  for (int i = 0; i < 3; i++)
+  {
+    bool EBtnState = digitalRead(nodes[2].btnPin);
+    if (nodes[2].lastBtn == HIGH && EBtnState == LOW)
+    {
+      if (now - nodes[2].timer >= 50)
+      {
+        nodes[2].timer = now;
+        nodes[i].state = LOW;
+        digitalWrite(nodes[i].indicatorPin, nodes[i].state);
+      }
+    }
+    nodes[2].lastBtn = EBtnState;
+  } 
 }
