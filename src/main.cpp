@@ -1,96 +1,87 @@
 #include <Arduino.h>
 
+int whiteLed = 17;
+int redLed = 5;
+int greenLed = 18;
 int potPin = 34;
-int whiteLedPin = 17;
-int redLedPin = 19;
-int buzzerPin = 21;
 
-unsigned long previousTime = 0;
-unsigned long interval = 500;
-
+unsigned long previousMillis = 0;
 unsigned long previousSerial = 0;
-unsigned long previousNormal = 0;
-unsigned long previousWarning = 0;
+unsigned long interval = 250;
 
-bool buzzerState = LOW;
+bool redLedState = LOW;
 
-/* Declaration of States*/
-enum States {
-  NORMAL,
-  WARNING,
-  SYSTEM_FAILURE
+/*Declaration Block*/
+
+enum State {
+  LOW_VOLTAGE_FAULT,
+  BULK_CHARGING,
+  FLOAT_CHARGING
 };
 
-States currentStates = NORMAL;
+State currentState = FLOAT_CHARGING;
 
 void setup() {
   Serial.begin(115200);
+  pinMode(whiteLed, OUTPUT);
+  pinMode(redLed, OUTPUT);
+  pinMode(greenLed, OUTPUT);
   pinMode(potPin, INPUT);
-  pinMode(whiteLedPin, OUTPUT);
-  pinMode(redLedPin, OUTPUT);
-  pinMode(buzzerPin, OUTPUT);
 }
 
 void loop() {
+
   unsigned long currentMillis = millis();
 
-  int potValues = analogRead(potPin);
+  int potValue = analogRead(potPin);
 
   /*Decision Block*/
-  if (potValues < 1500)
+  if (potValue <= 1200)
   {
-    currentStates = NORMAL;
-  } else if (potValues >= 1500 && potValues < 3000)
+    currentState = LOW_VOLTAGE_FAULT;
+  } else if (potValue > 1200 && potValue <= 3800)
   {
-    currentStates = WARNING;
-  }else if (potValues >= 3000)
+    currentState = BULK_CHARGING;
+  } else if (potValue > 3800)
   {
-    currentStates = SYSTEM_FAILURE;
+    currentState = FLOAT_CHARGING;
   }
   
 
-  /*Action Block*/
-  switch (currentStates)
+  switch (currentState)
   {
-  case NORMAL:
-    digitalWrite(whiteLedPin, HIGH);
-    digitalWrite(redLedPin, LOW);
-    digitalWrite(buzzerPin, LOW);
-    if (currentMillis - previousNormal >= interval)
-    {
-      previousNormal = currentMillis;
-      Serial.println("The System is Normal");
-    }
+  case FLOAT_CHARGING :
+    digitalWrite(redLed, LOW);
+    digitalWrite(whiteLed, LOW);
+    digitalWrite(greenLed, HIGH);
     break;
   
-  case WARNING:
-    digitalWrite(whiteLedPin, LOW);
-    digitalWrite(redLedPin, HIGH);
-    digitalWrite(buzzerPin, LOW);
-    if (currentMillis - previousWarning >= interval)
-    {
-      previousWarning = currentMillis;
-      Serial.println("The System is Warning a danger");
-    }
+  case BULK_CHARGING:
+    digitalWrite(redLed, LOW);
+    digitalWrite(whiteLed, HIGH);
+    digitalWrite(greenLed, LOW);
     break;
-  
-  case SYSTEM_FAILURE:
-    digitalWrite(whiteLedPin, LOW);
-    digitalWrite(redLedPin, HIGH);
-    if (currentMillis - previousTime >= interval)
+
+    case LOW_VOLTAGE_FAULT:
+    if (currentMillis - previousMillis >= interval)
     {
-      previousTime = currentMillis;
-      buzzerState = !buzzerState;
-      digitalWrite(buzzerPin, buzzerState);
-      Serial.println("The System is in System Failure");
+      previousMillis = currentMillis;
+      redLedState = !redLedState;
+      digitalWrite(redLed, redLedState);
     }
+    digitalWrite(whiteLed, LOW);
+    digitalWrite(greenLed, LOW);
     break;
   }
-
+  
   if (currentMillis - previousSerial >= interval)
-    {
-      previousSerial = currentMillis;
-      Serial.println(potValues);
-    }
+  {
+    previousSerial = currentMillis;
+    Serial.println(potValue);
+  }
+  
+  
+  
+
 }
 
